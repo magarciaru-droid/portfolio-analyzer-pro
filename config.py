@@ -2,7 +2,7 @@
 # CONFIGURACIÓN PRINCIPAL — Portfolio Analyzer (versión EUR)
 # ==============================================================================
 # ⚠️  ÚNICA LÍNEA QUE DEBES CAMBIAR AL PRINCIPIO:
-GOOGLE_SHEETS_ID = "Um2c6WYvR3zBaNNtIYU4bXx8hYo8"
+GOOGLE_SHEETS_ID = "1MvoQriR5I-u3KF-Um2c6WYvR3zBaNNtIYU4bXx8hYo8"
 # Ejemplo: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
 # Lo encuentras en la URL: docs.google.com/spreadsheets/d/ESTE_TROZO/edit
 
