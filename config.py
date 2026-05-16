@@ -3,8 +3,8 @@
 # ============================================================================
 
 # ⚠️ IMPORTANTE: Actualiza esto con tus datos
-GOOGLE_SHEETS_ID = "AQUI_VA_TU_ID_DE_GOOGLE_SHEETS"
-# Extrae de la URL: https://docs.google.com/spreadsheets/d/AQUI_VA_EL_ID/edit
+GOOGLE_SHEETS_ID = "1MvoQriR5I-u3KF-Um2c6WYvR3zBaNNtIYU4bXx8hYo8"
+# Extrae de la URL: https://docs.google.com/spreadsheets/d/1MvoQriR5I-u3KF-Um2c6WYvR3zBaNNtIYU4bXx8hYo8/edit
 
 # Nombres de las hojas en tu Google Sheet
 HOJA_ACTIVOS = "Activos"
