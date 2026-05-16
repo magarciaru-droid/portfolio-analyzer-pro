@@ -1,0 +1,165 @@
+# ============================================================================
+# PRICE FETCHER - Obtiene precios en tiempo real
+# ============================================================================
+
+import yfinance as yf
+import pandas as pd
+import streamlit as st
+from datetime import datetime, timedelta
+import numpy as np
+
+from config import TIMEOUT_YFINANCE
+
+def obtener_precio_actual(ticker, tipo_activo="ETF"):
+    """
+    Obtiene el precio actual de un activo usando Yahoo Finance
+    
+    Args:
+        ticker (str): Símbolo del activo (ej: VANG.L, MSFT, etc.)
+        tipo_activo (str): Tipo de activo (ETF, Accion, Fondo)
+    
+    Returns:
+        dict: {
+            'precio_actual': float,
+            'moneda': str,
+            'error': str o None
+        }
+    """
+    try:
+        # Si es una cuenta remunerada, retornar el precio como 1
+        if tipo_activo == "Cuenta_Remunerada":
+            return {
+                'precio_actual': 1.0,
+                'moneda': 'EUR',
+                'error': None
+            }
+        
+        # Descargar datos
+        data = yf.Ticker(ticker)
+        hist = data.history(period="1d")
+        
+        if hist.empty:
+            raise ValueError(f"No se encontraron datos para {ticker}")
+        
+        # Obtener precio de cierre más reciente
+        precio = float(hist['Close'].iloc[-1])
+        
+        # Obtener moneda
+        try:
+            moneda = data.info.get('currency', 'USD')
+        except:
+            moneda = 'USD'
+        
+        return {
+            'precio_actual': precio,
+            'moneda': moneda,
+            'error': None
+        }
+    
+    except Exception as e:
+        return {
+            'precio_actual': None,
+            'moneda': 'EUR',
+            'error': str(e)
+        }
+
+def obtener_precios_historicos(ticker, dias=252):
+    """
+    Obtiene datos históricos para calcular volatilidad y drawdown
+    
+    Args:
+        ticker (str): Símbolo del activo
+        dias (int): Número de días históricos
+    
+    Returns:
+        pd.DataFrame: DataFrame con histórico de precios
+    """
+    try:
+        if ticker == "Cuenta_Remunerada":
+            # Retornar serie constante para cuentas remuneradas
+            dates = pd.date_range(end=datetime.now(), periods=dias)
+            return pd.DataFrame({
+                'Close': [1.0] * dias
+            }, index=dates)
+        
+        data = yf.download(ticker, period="1y", progress=False)
+        return data
+    
+    except Exception as e:
+        print(f"Error al obtener histórico de {ticker}: {str(e)}")
+        return pd.DataFrame()
+
+def obtener_precios_actuales(df_cartera):
+    """
+    Obtiene precios actuales para todos los activos de la cartera
+    
+    Args:
+        df_cartera (pd.DataFrame): DataFrame con activos
+    
+    Returns:
+        pd.DataFrame: DataFrame actualizado con:
+        - Precio_Actual
+        - Valor_Actual
+        - Ganancia_Perdida
+        - Retorno_%
+        - Volatilidad
+        - Datos históricos
+    """
+    
+    # Inicializar columnas
+    df_cartera['Precio_Actual'] = 0.0
+    df_cartera['Valor_Actual'] = 0.0
+    df_cartera['Ganancia_Perdida'] = 0.0
+    df_cartera['Retorno_%'] = 0.0
+    df_cartera['Volatilidad_%'] = 0.0
+    df_cartera['Fecha_Ultima_Actualizacion'] = datetime.now()
+    
+    # Obtener precios para cada activo
+    for idx, row in df_cartera.iterrows():
+        ticker = row['Ticker']
+        tipo = row['Tipo_Activo']
+        cantidad = row['Cantidad']
+        precio_compra = row['Precio_Compra']
+        
+        # Obtener precio actual
+        resultado = obtener_precio_actual(ticker, tipo)
+        
+        if resultado['error']:
+            # Si hay error, mostrar alerta pero continuar
+            st.warning(f"⚠️ Error para {ticker}: {resultado['error']}")
+            df_cartera.at[idx, 'Precio_Actual'] = precio_compra  # Usar precio de compra como fallback
+        else:
+            precio_actual = resultado['precio_actual']
+            df_cartera.at[idx, 'Precio_Actual'] = precio_actual
+        
+        # Calcular valores
+        precio_actual = df_cartera.at[idx, 'Precio_Actual']
+        valor_actual = cantidad * precio_actual
+        ganancia = valor_actual - (cantidad * precio_compra)
+        retorno = (ganancia / (cantidad * precio_compra) * 100) if precio_compra > 0 else 0
+        
+        df_cartera.at[idx, 'Valor_Actual'] = valor_actual
+        df_cartera.at[idx, 'Ganancia_Perdida'] = ganancia
+        df_cartera.at[idx, 'Retorno_%'] = retorno
+        
+        # Calcular volatilidad histórica
+        hist = obtener_precios_historicos(ticker)
+        if not hist.empty:
+            retornos_diarios = hist['Close'].pct_change().dropna()
+            volatilidad = retornos_diarios.std() * np.sqrt(252) * 100
+            df_cartera.at[idx, 'Volatilidad_%'] = volatilidad
+    
+    return df_cartera
+
+def obtener_volatilidad_cartera(df_cartera):
+    """
+    Calcula volatilidad combinada de la cartera
+    
+    Returns:
+        float: Volatilidad media ponderada
+    """
+    volatilidades = df_cartera['Volatilidad_%'].fillna(0)
+    pesos = df_cartera['Valor_Actual'] / df_cartera['Valor_Actual'].sum()
+    
+    volatilidad_cartera = (volatilidades * pesos).sum()
+    return volatilidad_cartera
